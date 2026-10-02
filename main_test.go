@@ -1,0 +1,5 @@
+package main
+import("net/http/httptest";"strings";"testing")
+func TestCreateAndReplay(t *testing.T){a:=&API{};body:=`{"tenant":"demo","channel":"email","recipient":"user@example.com","template":"welcome"}`;for i,want:=range []int{202,200}{r:=httptest.NewRequest("POST","/notifications",strings.NewReader(body));r.Header.Set("Idempotency-Key","welcome-1");w:=httptest.NewRecorder();a.create(w,r);if w.Code!=want{t.Fatalf("attempt %d status=%d",i,w.Code)}}}
+func TestRejectsMissingTenant(t *testing.T){r:=httptest.NewRequest("POST","/notifications",strings.NewReader(`{"channel":"email","recipient":"x","template":"welcome"}`));r.Header.Set("Idempotency-Key","x");w:=httptest.NewRecorder();(&API{}).create(w,r);if w.Code!=400{t.Fatalf("status=%d",w.Code)}}
+func TestRejectsIdempotencyConflict(t *testing.T){a:=&API{};for _,recipient:=range []string{"a@example.com","b@example.com"}{r:=httptest.NewRequest("POST","/notifications",strings.NewReader(`{"tenant":"demo","channel":"email","recipient":"`+recipient+`","template":"welcome"}`));r.Header.Set("Idempotency-Key","same");w:=httptest.NewRecorder();a.create(w,r);if recipient[0]=='b'&&w.Code!=409{t.Fatalf("status=%d",w.Code)}}}
